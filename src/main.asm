@@ -1,5 +1,14 @@
 INCLUDE "hardware.inc"
 
+MACRO ADD16
+    ld a, \2
+    add LOW(\1)
+    ld LOW(\1), a
+    ld a, 0
+    adc HIGH(\1)
+    ld HIGH(\1), a
+ENDM
+
 SECTION "HEADER", ROM0[$100]
     jp main
     ds $150 - @, 0
@@ -52,9 +61,7 @@ MapCopyRow:
     jr nz, MapCopyRow
     dec b
     jr z, MapCopyDone
-REPT 12
-    inc hl
-ENDR
+    ADD16 hl, 12
     jr MapCopyRowStart
 MapCopyDone:
     ret
