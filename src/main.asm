@@ -1,13 +1,5 @@
 INCLUDE "hardware.inc"
-
-MACRO ADD16
-    ld a, \2
-    add LOW(\1)
-    ld LOW(\1), a
-    ld a, 0
-    adc HIGH(\1)
-    ld HIGH(\1), a
-ENDM
+INCLUDE "macros.inc"
 
 SECTION "STATE", WRAMX
 
@@ -95,9 +87,17 @@ ClearOAM:
     ld hl, $9800
     call MapCopy
 
-    ; Initialize puzzle
+    ; Initialize game state
     ld hl, puzzle001
     call LoadPuzzle
+
+    xor a
+    ld [gCursorX], a
+    ld [gCursorY], a
+
+    ; Initialize key state
+    ld [gCurKeys], a
+    ld [gNewKeys], a
 
     ; Turn on LCD
     ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
@@ -111,25 +111,15 @@ ClearOAM:
     ld a, %11100100
     ld [rOBP1], a
 
-done:
-    jr done
+Update:
+    ; Wait for Vblank
+    ld a, [rLY]
+    cp 144
+    jp nc, Update
 
-MapCopy:
-    ld b, 18
-MapCopyRowStart:
-    ld c, 20
-MapCopyRow:
-    ld a, [de]
-    ld [hli], a
-    inc de
-    dec c
-    jr nz, MapCopyRow
-    dec b
-    jr z, MapCopyDone
-    ADD16 hl, 12
-    jr MapCopyRowStart
-MapCopyDone:
-    ret
+    call UpdateKeys
+
+    jr Update
 
 MACRO LOAD_SPRITE_OAM
     ld a, \2 + 16
@@ -286,9 +276,6 @@ ENDR
     inc hl
     pop bc
     dec c
-    jr z, .LoadPuzzleDone
+    ret z
     push bc
     jp .LoadPuzzleEdgeLoopStart
-
-.LoadPuzzleDone:
-    ret
