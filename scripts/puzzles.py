@@ -1,0 +1,270 @@
+import argparse
+import dataclasses
+import enum
+import struct
+
+
+class CageOperator(enum.Enum):
+    ADD = "ADD"
+    SUB = "SUB"
+    MUL = "MUL"
+    DIV = "DIV"
+
+
+CAGE_OPERATOR_TILE_IDX: dict[CageOperator, int] = {
+    CageOperator.ADD: 0xA,
+    CageOperator.SUB: 0xB,
+    CageOperator.MUL: 0xC,
+    CageOperator.DIV: 0xD,
+}
+
+
+@dataclasses.dataclass
+class GroupCage:
+    op: CageOperator
+    target: int
+    tiles: list[tuple[int, int]]
+
+
+@dataclasses.dataclass
+class SingletonCage:
+    target: int
+    x: int
+    y: int
+
+
+@dataclasses.dataclass
+class Sprite:
+    x: int
+    y: int
+    tile_indexes: list[int]
+
+
+Cage = SingletonCage | GroupCage
+
+
+@dataclasses.dataclass
+class Puzzle:
+    cages: list[Cage]
+    values: list[list[int]]
+
+
+def validate_puzzle(puzzle: Puzzle):
+    for i, row in enumerate(puzzle.values):
+        if set(row) != {1, 2, 3, 4}:
+            raise Exception(f"row {i} is not valid")
+    for i in range(4):
+        col = [puzzle.values[i][y] for y in range(4)]
+        if set(col) != {1, 2, 3, 4}:
+            raise Exception("column {i} is not valid")
+    all_tiles = {(x, y) for x in range(4) for y in range(4)}
+    for cage in puzzle.cages:
+        if isinstance(cage, SingletonCage):
+            tile = (cage.x, cage.y)
+            if tile not in all_tiles:
+                raise Exception(f"tile {tile} defined more than once")
+            all_tiles.remove(tile)
+        else:
+            for tile in cage.tiles:
+                if tile not in all_tiles:
+                    raise Exception(f"tile {tile} defined more than once")
+                all_tiles.remove(tile)
+    if len(all_tiles) != 0:
+        raise Exception(f"tiles not defined: {list(all_tiles)}")
+    for i, cage in enumerate(puzzle.cages):
+        if isinstance(cage, SingletonCage):
+            if cage.target not in {1, 2, 3, 4}:
+                raise Exception(f"invalid target {cage.target} for singleton cage")
+        else:
+            values = sorted(
+                [puzzle.values[y][x] for x, y in cage.tiles], key=lambda x: -x
+            )
+            match cage.op:
+                case CageOperator.ADD:
+                    if sum(values) != cage.target:
+                        raise Exception(
+                            f"invalid cage {i}: values do not sum to {cage.target}"
+                        )
+                case CageOperator.SUB:
+                    result = values[0]
+                    for x in values[1:]:
+                        result -= x
+                    if result != cage.target:
+                        raise Exception(
+                            f"invalid cage {i}: values do not subtract to {cage.target}"
+                        )
+                case CageOperator.MUL:
+                    result = 1
+                    for x in values:
+                        result *= x
+                    if result != cage.target:
+                        raise Exception(
+                            f"invalid cage {i}: values do not multiply to {cage.target}"
+                        )
+                case CageOperator.DIV:
+                    result = values[0]
+                    for x in values[1:]:
+                        if result % x != 0:
+                            raise Exception(
+                                f"invalid cage{i}: values do not divide to {cage.target}"
+                            )
+                        result //= x
+                    if result != cage.target:
+                        raise Exception(
+                            f"invalid cage {i}: values do not divide to {cage.target}"
+                        )
+
+
+def get_sprite_x0(x: int) -> int:
+    board_x0 = 2 * 8 + 1 - 2
+    return board_x0 + x * 32
+
+
+def get_sprite_y0(y: int) -> int:
+    board_y0 = 1 * 8 + 2 - 3
+    return board_y0 + y * 32
+
+
+def find_top_tile(cage: GroupCage | SingletonCage) -> tuple[int, int]:
+    if isinstance(cage, SingletonCage):
+        return (cage.x, cage.y)
+
+    def compare_tile(p: tuple[int, int]) -> tuple[int, int]:
+        return (p[1], p[0])
+
+    tiles = sorted(cage.tiles, key=compare_tile)
+    return tiles[0]
+
+
+def get_digits(x: int) -> list[int]:
+    digits: list[int] = []
+    while x > 0:
+        digits.append(x % 10)
+        x //= 10
+    digits.reverse()
+    return digits
+
+
+def render_sprite(x: int, y: int, indexes: list[int]) -> bytes:
+    out = struct.pack("BB", x + 8, y + 16)
+    out += bytes([*indexes, 0xFF])
+    return out
+
+
+def render_sprites(puzzle: Puzzle) -> bytes:
+    sprites: list[bytes] = []
+    total_sprites = 0
+    for cage in puzzle.cages:
+        top_tile = find_top_tile(cage)
+        x = get_sprite_x0(top_tile[0])
+        y = get_sprite_y0(top_tile[1])
+        indexes = get_digits(cage.target)
+        if isinstance(cage, GroupCage):
+            indexes.append(CAGE_OPERATOR_TILE_IDX[cage.op])
+        sprites.append(render_sprite(x, y, indexes))
+        total_sprites += len(indexes)
+    # TODO: Bound should be tighter since we need space for other game sprites
+    assert total_sprites < 40
+    out = bytes([len(sprites)])
+    for sprite in sprites:
+        out += sprite
+    return out
+
+
+def render_values(puzzle: Puzzle) -> bytes:
+    packed_values: list[int] = []
+    for y in range(4):
+        for x in range(2):
+            hi = puzzle.values[y][x * 2] << 4
+            lo = puzzle.values[y][x * 2 + 1]
+            packed_values.append(hi | lo)
+    return bytes(packed_values)
+
+
+def render_puzzle(puzzle: Puzzle, outfile: str):
+    validate_puzzle(puzzle)
+    out = render_values(puzzle)
+    out += render_sprites(puzzle)
+    # TODO: Calculate edge map from puzzle
+    out += bytes([0x6C, 0xD4, 0x7E, 0x44])
+    with open(outfile, "wb") as outf:
+        outf.write(out)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--output", required=True)
+    args = parser.parse_args()
+    puzzle = Puzzle(
+        values=[
+            [4, 2, 1, 3],
+            [2, 4, 3, 1],
+            [3, 1, 4, 2],
+            [1, 3, 2, 4],
+        ],
+        cages=[
+            GroupCage(
+                op=CageOperator.MUL,
+                target=24,
+                tiles=[
+                    (0, 0),
+                    (0, 1),
+                    (0, 2),
+                ],
+            ),
+            SingletonCage(target=1, x=0, y=3),
+            GroupCage(
+                op=CageOperator.ADD,
+                target=3,
+                tiles=[
+                    (1, 0),
+                    (2, 0),
+                ],
+            ),
+            GroupCage(
+                op=CageOperator.ADD,
+                target=4,
+                tiles=[
+                    (3, 0),
+                    (3, 1),
+                ],
+            ),
+            GroupCage(
+                op=CageOperator.SUB,
+                target=3,
+                tiles=[
+                    (1, 1),
+                    (1, 2),
+                ],
+            ),
+            GroupCage(
+                op=CageOperator.SUB,
+                target=1,
+                tiles=[
+                    (2, 1),
+                    (2, 2),
+                ],
+            ),
+            GroupCage(
+                op=CageOperator.MUL,
+                target=6,
+                tiles=[
+                    (1, 3),
+                    (2, 3),
+                ],
+            ),
+            GroupCage(
+                op=CageOperator.DIV,
+                target=2,
+                tiles=[
+                    (3, 2),
+                    (3, 3),
+                ],
+            ),
+        ],
+    )
+    render_puzzle(puzzle, args.output)
+
+
+if __name__ == "__main__":
+    main()
