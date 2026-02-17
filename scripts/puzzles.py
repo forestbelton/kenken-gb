@@ -47,6 +47,7 @@ Cage = SingletonCage | GroupCage
 class Puzzle:
     cages: list[Cage]
     values: list[list[int]]
+    edges: list[int]
 
 
 def validate_puzzle(puzzle: Puzzle):
@@ -151,12 +152,20 @@ def render_sprite(x: int, y: int, indexes: list[int]) -> bytes:
     return out
 
 
+def has_left_edge(puzzle: Puzzle, x: int, y: int) -> bool:
+    mask = puzzle.edges[y] >> (x * 2)
+    return (mask & 1) != 0
+
+
 def render_sprites(puzzle: Puzzle) -> bytes:
     sprites: list[bytes] = []
     total_sprites = 0
     for cage in puzzle.cages:
         top_tile = find_top_tile(cage)
         x = get_sprite_x0(top_tile[0])
+        # Move text 1 pixel left if there is no left edge
+        if not has_left_edge(puzzle, top_tile[0], top_tile[1]):
+            x -= 1
         y = get_sprite_y0(top_tile[1])
         indexes = get_digits(cage.target)
         if isinstance(cage, GroupCage):
@@ -185,8 +194,7 @@ def render_puzzle(puzzle: Puzzle, outfile: str):
     validate_puzzle(puzzle)
     out = render_values(puzzle)
     out += render_sprites(puzzle)
-    # TODO: Calculate edge map from puzzle
-    out += bytes([0x6C, 0xD4, 0x7E, 0x44])
+    out += bytes(puzzle.edges)
     with open(outfile, "wb") as outf:
         outf.write(out)
 
@@ -196,6 +204,8 @@ def main() -> None:
     parser.add_argument("-o", "--output", required=True)
     args = parser.parse_args()
     puzzle = Puzzle(
+        # TODO: Calculate edge map from puzzle
+        edges=[0x6C, 0xD4, 0x7E, 0x44],
         values=[
             [4, 2, 1, 3],
             [2, 4, 3, 1],
