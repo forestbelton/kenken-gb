@@ -1,4 +1,5 @@
 *.bin
-*.bin.map
+*.map
+*.sym
 *.o
 *.gb

@@ -9,6 +9,37 @@ MACRO ADD16
     ld HIGH(\1), a
 ENDM
 
+SECTION "STATE", WRAMX
+
+gPuzzle: DS 2
+
+SECTION "GRAPHICS", ROM0
+
+boardTiles: INCBIN "src/assets/board.bin"
+boardTilesEnd:
+
+boardEdges: INCBIN "src/assets/board-edges.bin"
+boardEdgesEnd:
+
+boardTileMap: INCBIN "src/assets/board.bin.map"
+boardTileMapEnd:
+
+opTiles: INCBIN "src/assets/op.bin"
+opTilesEnd:
+
+DEF EDGE_TILE_IDX = (boardTilesEnd - boardTiles) / 16
+
+SECTION "PUZZLES", ROM0
+
+puzzle001: INCBIN "src/puzzles/001.bin"
+
+puzzleMapAddrs:
+    FOR Y, 4
+        FOR X, 4
+            DW ($9822 + (X * 4) + ($80 * Y))
+        ENDR
+    ENDR
+
 SECTION "HEADER", ROM0[$100]
     jp main
     ds $150 - @, 0
@@ -27,10 +58,25 @@ waitForVblank:
     xor a
     ld [rLCDC], a
 
-    ; Copy tile data
+    ; Clear OAM
+    xor a
+    ld b, 160
+    ld hl, STARTOF(OAM)
+ClearOAM:
+    ld [hli], a
+    dec b
+    jp nz, ClearOAM
+
+    ; Copy board tile data
     ld de, boardTiles
     ld hl, $9000
-    ld bc, boardTilesEnd - boardTiles
+    ld bc, boardEdgesEnd - boardTiles
+    call MemCopy
+
+    ; Copy operator sprites
+    ld de, opTiles
+    ld hl, $8000
+    ld bc, opTilesEnd - opTiles
     call MemCopy
 
     ; Copy tile map
@@ -38,13 +84,19 @@ waitForVblank:
     ld hl, $9800
     call MapCopy
 
+    ; Initialize puzzle
+    ld hl, puzzle001
+    call LoadPuzzle
+
     ; Turn on LCD
-    ld a, LCDC_ON | LCDC_BG_ON
+    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
     ld [rLCDC], a
 
     ; Initialize display registers
     ld a, %11100100
     ld [rBGP], a
+    ld a, %11111100
+    ld [rOBP0], a
 
 done:
     jr done
@@ -66,11 +118,146 @@ MapCopyRow:
 MapCopyDone:
     ret
 
-SECTION "GRAPHICS", ROM0
+; Load a puzzle from ROM
+; @param hl Puzzle address
+LoadPuzzle:
+    ; Set pointer to current puzzle
+    ld bc, gPuzzle
+    ld a, h
+    ld [bc], a
+    inc bc
+    ld a, l
+    ld [bc], a
 
-boardTiles: INCBIN "src/assets/board.bin"
-boardTilesEnd:
+    ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
+    ADD16 hl, 8
+    ld a, [hl+]
+    ld c, a
+    ld de, STARTOF(OAM)
 
-boardTileMap: INCBIN "src/assets/board.bin.map"
-boardTileMapEnd:
+.LoadSpriteSequence:
+    ld a, [hl+] ; Initial X
+    ld b, a
 
+    ld a, [hl+] ; Initial Y
+    push af
+
+.LoadSpriteSequenceLoop
+    ; End loop when encountering sequence terminator (0xff)
+    ld a, [hl]
+    cp a, $ff
+    jr z, .LoadSpriteSequenceDone
+
+    ; Write Tile Y
+    pop af
+    ld [de], a
+    inc de
+    push af
+
+    ; Write Tile X (increments by 4 each time)
+    ld a, b
+    ld [de], a
+    inc de
+    add a, 4
+    ld b, a
+
+    ; Write OAM tile index
+    ld a, [hl+]
+    ld [de], a
+    inc de
+
+    ; Write OAM attribute
+    ld a, $80
+    ld [de], a
+    inc de
+
+    jr .LoadSpriteSequenceLoop
+
+.LoadSpriteSequenceDone
+    ; Skip terminator byte
+    inc hl
+
+    ; Remove stored tile Y from stack
+    pop af
+
+    ; Loop if more sprites left in sequence
+    dec c
+    jr nz, .LoadSpriteSequence
+
+    ; Update edge tiles
+    ld de, puzzleMapAddrs
+
+    ld b, 0
+    ld c, 4
+    push bc
+
+.LoadPuzzleEdgeLoopStart:
+FOR N, 4
+    ; Lookup tile start for cell
+    ld a, [de]
+    inc de
+    ld c, a
+    ld a, [de]
+    inc de
+    ld b, a
+
+    ; Copy left edge if first bit set
+    ld a, [hl]
+    bit (N * 2), a
+    jr z, .SkipCopyLeft\@
+    call CopyLeftEdge
+    jr .CopyLeftDone\@
+
+.SkipCopyLeft\@:
+    ; First bit not set -> seek to bottom right of cell
+    ADD16 bc, $60
+
+.CopyLeftDone\@:
+    ld a, [hl]
+    REPT N
+        srl a
+        srl a
+    ENDR
+    and $3
+    jr z, .EdgeDone\@
+
+    add EDGE_TILE_IDX
+    ld [bc], a
+    inc bc
+
+.CopyBottom\@:
+    ld a, [hl]
+    bit (N * 2 + 1), a
+    jr z, .EdgeDone\@
+    REPT 2
+        ld a, EDGE_TILE_IDX + 2
+        ld [bc], a
+        inc bc
+    ENDR
+    ld a, EDGE_TILE_IDX + 5
+    ld [bc], a
+
+.EdgeDone\@:
+ENDR
+
+    inc hl
+    pop bc
+    dec c
+    jr z, .LoadPuzzleDone
+    push bc
+    jp .LoadPuzzleEdgeLoopStart
+
+.LoadPuzzleDone:
+    ret
+
+; Mark cell's left edge as bordered
+; @param bc Cell map address start
+CopyLeftEdge:
+    ld a, EDGE_TILE_IDX + 4
+    ld [bc], a
+REPT 3
+    ADD16 bc, $20
+    ld a, EDGE_TILE_IDX + 1
+    ld [bc], a
+ENDR
+    ret

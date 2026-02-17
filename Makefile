@@ -14,7 +14,7 @@ ASSETS := \
 .PHONY: clean
 
 $(GBFILE): $(ASSETS) $(OBJFILES)
-	rgblink $(OBJFILES) -o $@
+	rgblink $(OBJFILES) -o $@ -m kenken.map -n kenken.sym
 	rgbfix -v -p 0xFF -t "KENKEN" $@
 
 src/%.o : src/%.asm $(ASSETS)
@@ -24,7 +24,7 @@ src/assets/%.bin: assets/bg/%.png
 	rgbgfx -u -t $@.map -o $@ $<	
 
 src/assets/%.bin: assets/sprite/%.png
-	rgbgfx -o $@ $<	
+	rgbgfx -o $@ $<
 
 clean:
 	rm -f $(ASSETS) $(GBFILE) $(MAPS) $(OBJFILES)
