@@ -12,6 +12,8 @@ ENDM
 SECTION "STATE", WRAMX
 
 gPuzzle: DS 2
+gCursorX: DS 1
+gCursorY: DS 1
 
 SECTION "GRAPHICS", ROM0
 
@@ -26,6 +28,9 @@ boardTileMapEnd:
 
 opTiles: INCBIN "src/assets/op.bin"
 opTilesEnd:
+
+cursorTiles: INCBIN "src/assets/cursor.bin"
+cursorTilesEnd:
 
 DEF EDGE_TILE_IDX = (boardTilesEnd - boardTiles) / 16
 
@@ -73,9 +78,15 @@ ClearOAM:
     ld bc, boardEdgesEnd - boardTiles
     call MemCopy
 
+    ; Copy cursor sprite
+    ld de, cursorTiles
+    ld hl, $8000
+    ld bc, cursorTilesEnd - cursorTiles
+    call MemCopy
+
     ; Copy operator sprites
     ld de, opTiles
-    ld hl, $8000
+    ld hl, $8000 + (cursorTilesEnd - cursorTiles)
     ld bc, opTilesEnd - opTiles
     call MemCopy
 
@@ -97,6 +108,8 @@ ClearOAM:
     ld [rBGP], a
     ld a, %11111100
     ld [rOBP0], a
+    ld a, %11100100
+    ld [rOBP1], a
 
 done:
     jr done
@@ -118,6 +131,21 @@ MapCopyRow:
 MapCopyDone:
     ret
 
+MACRO LOAD_SPRITE_OAM
+    ld a, \2 + 16
+    ld [de], a
+    inc de
+    ld a, \1 + 8
+    ld [de], a
+    inc de
+    ld a, \3
+    ld [de], a
+    inc de
+    ld a, \4
+    ld [de], a
+    inc de
+ENDM
+
 ; Load a puzzle from ROM
 ; @param hl Puzzle address
 LoadPuzzle:
@@ -129,11 +157,17 @@ LoadPuzzle:
     ld a, l
     ld [bc], a
 
+    ; Load cursor sprites
+    ld de, STARTOF(OAM)
+
+    LOAD_SPRITE_OAM 40, 9, 0, %00010000
+    LOAD_SPRITE_OAM 40, 32, 0, %01010000
+    LOAD_SPRITE_OAM 16, 32, 0, %01110000
+
     ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
     ADD16 hl, 8
     ld a, [hl+]
     ld c, a
-    ld de, STARTOF(OAM)
 
 .LoadSpriteSequence:
     ld a, [hl+] ; Initial X
@@ -167,7 +201,8 @@ LoadPuzzle:
     inc de
 
     ; Write OAM attribute
-    ld a, $80
+    ; ld a, $80
+    xor a
     ld [de], a
     inc de
 
@@ -205,7 +240,15 @@ FOR N, 4
     ld a, [hl]
     bit (N * 2), a
     jr z, .SkipCopyLeft\@
-    call CopyLeftEdge
+    
+    ld a, EDGE_TILE_IDX + 4
+    ld [bc], a
+        REPT 3
+        ADD16 bc, $20
+        ld a, EDGE_TILE_IDX + 1
+        ld [bc], a
+    ENDR
+
     jr .CopyLeftDone\@
 
 .SkipCopyLeft\@:
@@ -248,16 +291,4 @@ ENDR
     jp .LoadPuzzleEdgeLoopStart
 
 .LoadPuzzleDone:
-    ret
-
-; Mark cell's left edge as bordered
-; @param bc Cell map address start
-CopyLeftEdge:
-    ld a, EDGE_TILE_IDX + 4
-    ld [bc], a
-REPT 3
-    ADD16 bc, $20
-    ld a, EDGE_TILE_IDX + 1
-    ld [bc], a
-ENDR
     ret

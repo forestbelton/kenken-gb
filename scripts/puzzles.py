@@ -11,6 +11,8 @@ class CageOperator(enum.Enum):
     DIV = "DIV"
 
 
+OPERATOR_TILE_OFFSET = 1
+
 CAGE_OPERATOR_TILE_IDX: dict[CageOperator, int] = {
     CageOperator.ADD: 0xA,
     CageOperator.SUB: 0xB,
@@ -148,7 +150,8 @@ def get_digits(x: int) -> list[int]:
 
 def render_sprite(x: int, y: int, indexes: list[int]) -> bytes:
     out = struct.pack("BB", x + 8, y + 16)
-    out += bytes([*indexes, 0xFF])
+    out += bytes(index + OPERATOR_TILE_OFFSET for index in indexes)
+    out += bytes([0xFF])
     return out
 
 
@@ -172,8 +175,8 @@ def render_sprites(puzzle: Puzzle) -> bytes:
             indexes.append(CAGE_OPERATOR_TILE_IDX[cage.op])
         sprites.append(render_sprite(x, y, indexes))
         total_sprites += len(indexes)
-    # TODO: Bound should be tighter since we need space for other game sprites
-    assert total_sprites < 40
+    # 37 = 40 (total sprites) - 3 (cursor sprites)
+    assert total_sprites < 37
     out = bytes([len(sprites)])
     for sprite in sprites:
         out += sprite
