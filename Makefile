@@ -17,7 +17,7 @@ $(GBFILE): $(ASSETS) $(OBJFILES)
 	rgblink $(OBJFILES) -o $@
 	rgbfix -v -p 0xFF -t "KENKEN" $@
 
-src/%.o : src/%.asm
+src/%.o : src/%.asm $(ASSETS)
 	rgbasm -I src $< -o $@
 
 src/assets/%.bin: assets/bg/%.png
@@ -27,4 +27,4 @@ src/assets/%.bin: assets/sprite/%.png
 	rgbgfx -o $@ $<	
 
 clean:
-	rm -f $(ASSETS) $(GBFILE) $(MAPS)
+	rm -f $(ASSETS) $(GBFILE) $(MAPS) $(OBJFILES)
