@@ -21,6 +21,12 @@ boardTilesEnd:
 boardEdges: INCBIN "src/assets/board-edges.bin"
 boardEdgesEnd:
 
+value1Tiles: INCBIN "src/assets/value1.bin"
+value2Tiles: INCBIN "src/assets/value2.bin"
+value3Tiles: INCBIN "src/assets/value3.bin"
+value4Tiles: INCBIN "src/assets/value4.bin"
+value4TilesEnd:
+
 boardTileMap: INCBIN "src/assets/board.bin.map"
 boardTileMapEnd:
 
@@ -79,10 +85,16 @@ ClearOAM:
     dec b
     jp nz, ClearOAM
 
-    ; Copy board tile data
+    ; Copy board tile + edge data
     ld de, boardTiles
     ld hl, $9000
     ld bc, boardEdgesEnd - boardTiles
+    call MemCopy
+
+    ; Copy value tile data
+    ld de, value1Tiles
+    ld hl, $9000 + (boardEdgesEnd - boardTiles)
+    ld bc, value4TilesEnd - value1Tiles
     call MemCopy
 
     ; Copy cursor sprite
