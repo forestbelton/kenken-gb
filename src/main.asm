@@ -43,6 +43,15 @@ puzzleMapAddrs:
         ENDR
     ENDR
 
+DEF CURSOR_X0 EQU 40
+DEF CURSOR_Y0 EQU 9
+
+DEF CURSOR_X1 EQU 40
+DEF CURSOR_Y1 EQU 32
+
+DEF CURSOR_X2 EQU 16
+DEF CURSOR_Y2 EQU 32
+
 SECTION "HEADER", ROM0[$100]
     jp main
     ds $150 - @, 0
@@ -54,7 +63,7 @@ main:
 
 waitForVblank:
     ld a, [rLY]
-    cp 144
+    cp LY_VBLANK
     jr c, waitForVblank
 
     ; Disable LCD
@@ -63,7 +72,7 @@ waitForVblank:
 
     ; Clear OAM
     xor a
-    ld b, 160
+    ld b, OAM_SIZE
     ld hl, STARTOF(OAM)
 ClearOAM:
     ld [hli], a
@@ -90,7 +99,7 @@ ClearOAM:
 
     ; Copy tile map
     ld de, boardTileMap
-    ld hl, $9800
+    ld hl, TILEMAP0
     call MapCopy
 
     ; Initialize game state
@@ -119,11 +128,11 @@ ClearOAM:
 
 Update:
     ld a, [rLY]
-    cp 144
+    cp LY_VBLANK
     jp nc, Update
 WaitVBlank2:
     ld a, [rLY]
-    cp 144
+    cp LY_VBLANK
     jp c, WaitVBlank2
 
     call UpdateKeys
@@ -209,15 +218,15 @@ ENDM
 .UpdateCursorSprites:
     ld de, STARTOF(OAM)
 
-    UPDATE_CURSOR_SPRITE 40, 9
+    UPDATE_CURSOR_SPRITE CURSOR_X0, CURSOR_Y0
     inc de
     inc de
 
-    UPDATE_CURSOR_SPRITE 40, 32
+    UPDATE_CURSOR_SPRITE CURSOR_X1, CURSOR_Y1
     inc de
     inc de
 
-    UPDATE_CURSOR_SPRITE 16, 32
+    UPDATE_CURSOR_SPRITE CURSOR_X2, CURSOR_Y2
     inc de
     inc de
 
@@ -252,9 +261,9 @@ LoadPuzzle:
     ; Load cursor sprites
     ld de, STARTOF(OAM)
 
-    LOAD_SPRITE_OAM 40, 9, 0, %00010000
-    LOAD_SPRITE_OAM 40, 32, 0, %01010000
-    LOAD_SPRITE_OAM 16, 32, 0, %01110000
+    LOAD_SPRITE_OAM CURSOR_X0, CURSOR_Y0, 0, %00010000
+    LOAD_SPRITE_OAM CURSOR_X1, CURSOR_Y1, 0, %01010000
+    LOAD_SPRITE_OAM CURSOR_X2, CURSOR_Y2, 0, %01110000
 
     ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
     ADD16 hl, 8
@@ -293,7 +302,6 @@ LoadPuzzle:
     inc de
 
     ; Write OAM attribute
-    ; ld a, $80
     xor a
     ld [de], a
     inc de
@@ -335,7 +343,7 @@ FOR N, 4
     
     ld a, EDGE_TILE_IDX + 4
     ld [bc], a
-        REPT 3
+    REPT 3
         ADD16 bc, $20
         ld a, EDGE_TILE_IDX + 1
         ld [bc], a
