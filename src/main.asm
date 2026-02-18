@@ -6,6 +6,8 @@ SECTION "STATE", WRAMX
 gPuzzle: DS 2
 gCursorX: DS 1
 gCursorY: DS 1
+gPuzzleValues: DS 4 * 4
+gCheckWin: DS 1
 
 SECTION "GRAPHICS", ROM0
 
@@ -21,6 +23,7 @@ boardTilesEnd:
 boardEdges: INCBIN "src/assets/board-edges.bin"
 boardEdgesEnd:
 
+value0Tiles: INCBIN "src/assets/value0.bin"
 value1Tiles: INCBIN "src/assets/value1.bin"
 value2Tiles: INCBIN "src/assets/value2.bin"
 value3Tiles: INCBIN "src/assets/value3.bin"
@@ -42,10 +45,17 @@ SECTION "PUZZLES", ROM0
 
 puzzle001: INCBIN "src/puzzles/001.bin"
 
-puzzleMapAddrs:
+puzzleEdgeMapAddrs:
     FOR Y, 4
         FOR X, 4
-            DW ($9822 + (X * 4) + ($80 * Y))
+            DW $9822 + (X * 4) + ($80 * Y)
+        ENDR
+    ENDR
+
+puzzleValueMapAddrs:
+    FOR Y, 4
+        FOR X, 4
+            DW $9843 + (X * 4) + ($80 * Y)
         ENDR
     ENDR
 
@@ -85,16 +95,10 @@ ClearOAM:
     dec b
     jp nz, ClearOAM
 
-    ; Copy board tile + edge data
+    ; Copy board + edge + values tile data
     ld de, boardTiles
     ld hl, $9000
-    ld bc, boardEdgesEnd - boardTiles
-    call MemCopy
-
-    ; Copy value tile data
-    ld de, value1Tiles
-    ld hl, $9000 + (boardEdgesEnd - boardTiles)
-    ld bc, value4TilesEnd - value1Tiles
+    ld bc, value4TilesEnd - boardTiles
     call MemCopy
 
     ; Copy cursor sprite
@@ -117,10 +121,6 @@ ClearOAM:
     ; Initialize game state
     ld hl, puzzle001
     call LoadPuzzle
-
-    xor a
-    ld [gCursorX], a
-    ld [gCursorY], a
 
     ; Initialize key state
     ld [gCurKeys], a
@@ -149,63 +149,74 @@ WaitVBlank2:
 
     call UpdateKeys
 
-    ; Check if up pressed
-    ld a, [gNewKeys]
-    and PAD_UP
-    jr z, .CheckDown
+    call UpdateValue
+    call UpdateCursor
+    jr Update
 
-    ; Check if cursor can move up
+; Update the value at the cursor position.
+UpdateValue:
+    ; Check if A button pressed
+    ld a, [gNewKeys]
+    and PAD_A
+    ret z
+
+    ; Calculate value offset
     ld a, [gCursorY]
-    or a
-    jr z, Update
-
-    dec a
-    ld [gCursorY], a
-    jr .UpdateCursorSprites
-
-.CheckDown:
-    ; Check if down pressed
-    ld a, [gNewKeys]
-    and PAD_DOWN
-    jr z, .CheckLeft
-
-    ; Check if cursor can move down
-    ld a, [gCursorY]
-    cp 3
-    jr z, Update
-
-    inc a
-    ld [gCursorY], a
-    jr .UpdateCursorSprites
-
-.CheckLeft:
-    ; Check if down pressed
-    ld a, [gNewKeys]
-    and PAD_LEFT
-    jr z, .CheckRight
-
-    ; Check if cursor can move left
+    sla a
+    sla a
+    ld d, a
     ld a, [gCursorX]
-    or a
-    jr z, Update
+    add d
+    ld d, a
 
-    dec a
-    ld [gCursorX], a
-    jr .UpdateCursorSprites
+    ld bc, gPuzzleValues
+    ADD16A bc
 
-.CheckRight:
-    ; Check if right pressed
-    ld a, [gNewKeys]
-    and PAD_RIGHT
-    jr z, Update
-
-    ; Check if cursor can move right
-    ld a, [gCursorX]
-    cp 3
-    jr z, Update
-
+    ; value <- (value + 1) % 5
+    ld a, [bc]
     inc a
-    ld [gCursorX], a
+    cp 5
+    jr nz, .UpdateValueTiles
+    xor a
+
+.UpdateValueTiles:
+    ; Update puzzle state
+    ld [bc], a
+    ld e, a
+
+    ; Calculate base map address
+    ld bc, puzzleValueMapAddrs
+    ld a, d
+    sla a
+    ADD16A bc
+    ld a, [bc]
+    inc bc
+    ld l, a
+    ld a, [bc]
+    ld h, a
+
+    ; Calculate tile index
+    ld a, e
+    sla a
+    sla a
+    add $15
+
+    ; Update map with new tiles
+    ld [hl+], a
+    inc a
+    ld [hl], a
+    inc a
+    ld e, a
+    ADD16 hl, $1f
+    ld a, e
+    ld [hl+], a
+    inc a
+    ld [hl], a
+
+    ld a, 1
+    ld [gCheckWin], a
+
+    ret
 
 MACRO UPDATE_CURSOR_SPRITE
     ; Y = \2 + cursorY * 32 + 16
@@ -227,6 +238,66 @@ MACRO UPDATE_CURSOR_SPRITE
     inc de
 ENDM
 
+; Update the position of the cursor.
+UpdateCursor:
+    ; Check if up pressed
+    ld a, [gNewKeys]
+    and PAD_UP
+    jr z, .CheckDown
+
+    ; Check if cursor can move up
+    ld a, [gCursorY]
+    or a
+    ret z
+
+    dec a
+    ld [gCursorY], a
+    jr .UpdateCursorSprites
+
+.CheckDown:
+    ; Check if down pressed
+    ld a, [gNewKeys]
+    and PAD_DOWN
+    jr z, .CheckLeft
+
+    ; Check if cursor can move down
+    ld a, [gCursorY]
+    cp 3
+    ret z
+
+    inc a
+    ld [gCursorY], a
+    jr .UpdateCursorSprites
+
+.CheckLeft:
+    ; Check if down pressed
+    ld a, [gNewKeys]
+    and PAD_LEFT
+    jr z, .CheckRight
+
+    ; Check if cursor can move left
+    ld a, [gCursorX]
+    or a
+    ret z
+
+    dec a
+    ld [gCursorX], a
+    jr .UpdateCursorSprites
+
+.CheckRight:
+    ; Check if right pressed
+    ld a, [gNewKeys]
+    and PAD_RIGHT
+    ret z
+
+    ; Check if cursor can move right
+    ld a, [gCursorX]
+    cp 3
+    ret z
+
+    inc a
+    ld [gCursorX], a
+
 .UpdateCursorSprites:
     ld de, STARTOF(OAM)
 
@@ -242,7 +313,7 @@ ENDM
     inc de
     inc de
 
-    jp Update
+    ret
 
 MACRO LOAD_SPRITE_OAM
     ld a, \2 + 16
@@ -262,6 +333,16 @@ ENDM
 ; Load a puzzle from ROM
 ; @param hl Puzzle address
 LoadPuzzle:
+    ; Reset puzzle state
+    xor a
+    ld [gCursorX], a
+    ld [gCursorY], a
+    ld [gCheckWin], a
+    
+    ld de, gPuzzleValues
+    ld h, 4 * 4
+    call MemSet
+
     ; Set pointer to current puzzle
     ld bc, gPuzzle
     ld a, h
@@ -332,7 +413,7 @@ LoadPuzzle:
     jr nz, .LoadSpriteSequence
 
     ; Update edge tiles
-    ld de, puzzleMapAddrs
+    ld de, puzzleEdgeMapAddrs
 
     ld b, 0
     ld c, 4

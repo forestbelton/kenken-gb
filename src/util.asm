@@ -3,6 +3,19 @@ INCLUDE "macros.inc"
 
 SECTION "Utilities", ROM0
 
+; Fill a region with a value.
+; @param de: Source
+; @param a: Value
+; @param h: Length (must be > 0)
+MemSet:
+    ld [de], a
+    inc de
+    dec h
+    ret z
+    jr MemSet
+
+EXPORT MemSet
+
 ; Copy bytes from one area to another.
 ; @param de: Source
 ; @param hl: Destination

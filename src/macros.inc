@@ -11,4 +11,12 @@ MACRO ADD16
     ld HIGH(\1), a
 ENDM
 
+MACRO ADD16A
+    add LOW(\1)
+    ld LOW(\1), a
+    ld a, 0
+    adc HIGH(\1)
+    ld HIGH(\1), a
+ENDM
+
 ENDC
