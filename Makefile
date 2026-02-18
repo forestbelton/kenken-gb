@@ -31,4 +31,4 @@ puzzles:
 	python scripts/render_all.py
 
 clean:
-	rm -f $(ASSETS) $(GBFILE) $(MAPS) $(OBJFILES)
+	rm -f $(ASSETS) $(GBFILE) $(MAPS) $(OBJFILES) $(PUZZLEFILES) src/puzzles.asm
