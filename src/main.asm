@@ -18,4 +18,9 @@ main:
     ld a, %11100100
     ld [rOBP1], a
 
+    ; Initialize key state
+    xor a
+    ld [gCurKeys], a
+    ld [gNewKeys], a
+
     call RunTitle

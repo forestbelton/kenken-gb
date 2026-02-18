@@ -1,5 +1,6 @@
 INCLUDE "hardware.inc"
 INCLUDE "macros.inc"
+INCLUDE "rand.inc"
 
 DEF CURSOR_X0 EQU 40
 DEF CURSOR_Y0 EQU 9
@@ -9,11 +10,6 @@ DEF CURSOR_Y1 EQU 32
 
 DEF CURSOR_X2 EQU 16
 DEF CURSOR_Y2 EQU 32
-
-SECTION "Puzzles", ROM0
-
-puzzle001: INCBIN "src/puzzles/001.bin"
-puzzle002: INCBIN "src/puzzles/002.bin"
 
 SECTION "Puzzle constants", ROM0
 
@@ -60,7 +56,7 @@ opTilesEnd:
 cursorTiles: INCBIN "src/assets/cursor.bin"
 cursorTilesEnd:
 
-SECTION "Game state", WRAMX
+SECTION "Game state", WRAM0
 
 gPuzzle: DS 2
 gCursorX: DS 1
@@ -106,13 +102,22 @@ RunGame:
     ld hl, TILEMAP0
     call MapCopy
 
-    ; Initialize game state
-    ld hl, puzzle002
-    call LoadPuzzle
+    ; Load random puzzle
+    call rand
+    call Mod160
+    
+    ld de, gPuzzleTable
+    ADD16A de
+    ld a, b
+    ADD16A de
 
-    ; Initialize key state
-    ld [gCurKeys], a
-    ld [gNewKeys], a
+    ld a, [de]
+    ld l, a
+    inc de
+    ld a, [de]
+    ld h, a
+
+    call LoadPuzzle
 
     ; Turn on LCD
     ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
@@ -383,6 +388,8 @@ LoadPuzzle:
     inc bc
     ld a, l
     ld [bc], a
+
+    push hl
     
     xor a
     ld de, gPuzzleValues
@@ -397,6 +404,7 @@ LoadPuzzle:
     LOAD_SPRITE_OAM CURSOR_X2, CURSOR_Y2, 0, %01110000
 
     ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
+    pop hl
     ; ADD16 hl, 8
     ADD16 hl, 16
     ld a, [hl+]

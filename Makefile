@@ -12,7 +12,7 @@ ASSETS := \
 	$(SPRITES:assets/sprite/%.png=src/assets/%.bin) \
 	$(BGS:assets/bg/%.png=src/assets/%.bin)
 
-.PHONY: clean
+.PHONY: clean puzzles
 
 $(GBFILE): $(ASSETS) $(OBJFILES)
 	rgblink $(OBJFILES) -o $@ -m kenken.map -n kenken.sym
@@ -26,6 +26,9 @@ src/assets/%.bin: assets/bg/%.png
 
 src/assets/%.bin: assets/sprite/%.png
 	rgbgfx -o $@ $<
+
+puzzles:
+	python scripts/render_all.py
 
 clean:
 	rm -f $(ASSETS) $(GBFILE) $(MAPS) $(OBJFILES)

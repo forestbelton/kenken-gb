@@ -104,7 +104,21 @@ ClearOAM:
 
 EXPORT ClearOAM
 
-SECTION "Joypad state", WRAMX
+; Compute remainder of division by 160
+; @param b: Value to compute remainder of
+; @return b: Remainder
+Mod160:
+    ld a, b
+    cp 160
+    jr c, .done
+    sub 160
+.done:
+    ld b, a
+    ret
+
+EXPORT Mod160
+
+SECTION "Joypad state", WRAM0
 
 gCurKeys: DS 1
 gNewKeys: DS 1

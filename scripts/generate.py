@@ -196,39 +196,3 @@ def generate_puzzle() -> Puzzle:
     cages = [assign_cage_operator(cells, grid) for cells in cage_cells_list]
     edges = calculate_edges(cages)
     return Puzzle(cages=cages, values=grid, edges=edges)
-
-
-def print_puzzle(puzzle: Puzzle) -> None:
-    """Pretty-print a KenKen puzzle."""
-    n = 4
-    # Build a cage-id grid for display
-    cage_id_grid = [[" " for _ in range(n)] for _ in range(n)]
-
-    for i, cage in enumerate(puzzle.cages):
-        label = str(i)
-        if isinstance(cage, SingletonCage):
-            cage_id_grid[cage.y][cage.x] = label  # y=row, x=col
-        else:
-            for x, y in cage.tiles:
-                cage_id_grid[y][x] = label  # y=row, x=col
-
-    print("=== Solution Grid ===")
-    for row in puzzle.values:
-        print(" ".join(map(str, row)))
-
-    print("\n=== Cages ===")
-    for i, cage in enumerate(puzzle.cages):
-        if isinstance(cage, SingletonCage):
-            print(
-                f"  Cage {i}: SingletonCage  target={cage.target}  cell=({cage.x},{cage.y})"
-            )
-        else:
-            op_sym = {"ADD": "+", "SUB": "-", "MUL": "×", "DIV": "÷"}[cage.op.value]
-            tiles_str = ", ".join(f"({x},{y})" for x, y in cage.tiles)
-            print(
-                f"  Cage {i}: {cage.op.value:3s} ({op_sym})  target={cage.target:3d}  cells=[{tiles_str}]"
-            )
-
-    print("\n=== Cage ID Grid (for reference) ===")
-    for row in cage_id_grid:
-        print(" ".join(row))
