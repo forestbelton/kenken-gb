@@ -1,5 +1,6 @@
 GBFILE := kenken.gb
 
+PUZZLEFILES := $(shell find src/puzzles -type f -name '*.bin')
 ASMFILES := $(shell find src/ -type f -name '*.asm')
 OBJFILES := $(ASMFILES:%.asm=%.o)
 
@@ -17,7 +18,7 @@ $(GBFILE): $(ASSETS) $(OBJFILES)
 	rgblink $(OBJFILES) -o $@ -m kenken.map -n kenken.sym
 	rgbfix -v -p 0xFF -t "KENKEN" $@
 
-src/%.o : src/%.asm $(ASSETS)
+src/%.o : src/%.asm $(ASSETS) $(PUZZLEFILES)
 	rgbasm -I src $< -o $@
 
 src/assets/%.bin: assets/bg/%.png

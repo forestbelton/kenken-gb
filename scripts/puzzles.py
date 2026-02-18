@@ -184,13 +184,14 @@ def render_sprites(puzzle: Puzzle) -> bytes:
 
 
 def render_values(puzzle: Puzzle) -> bytes:
-    packed_values: list[int] = []
-    for y in range(4):
-        for x in range(2):
-            hi = puzzle.values[y][x * 2] << 4
-            lo = puzzle.values[y][x * 2 + 1]
-            packed_values.append(hi | lo)
-    return bytes(packed_values)
+    # packed_values: list[int] = []
+    # for y in range(4):
+    #     for x in range(4):
+    #         hi = puzzle.values[y][x] << 4
+    #         lo = puzzle.values[y][x]
+    #         packed_values.append(hi | lo)
+    # return bytes(packed_values)
+    return bytes(puzzle.values[y][x] for y in range(4) for x in range(4))
 
 
 def render_puzzle(puzzle: Puzzle, outfile: str):

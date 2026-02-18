@@ -147,11 +147,54 @@ WaitVBlank2:
     cp LY_VBLANK
     jp c, WaitVBlank2
 
+    call UpdateWin
+
     call UpdateKeys
 
     call UpdateValue
     call UpdateCursor
     jr Update
+
+; Check if the puzzle state is correct.
+UpdateWin:
+    ld a, [gCheckWin]
+    or a
+    ret z
+
+    ; Dereference puzzle pointer
+    ld bc, gPuzzle
+    ld a, [bc]
+    ld l, a
+    inc bc
+    ld a, [bc]
+    ld h, a
+    ld b, h
+    ld c, l
+
+    ld hl, gPuzzleValues
+
+    ld e, 16
+.CheckValues:
+    ; Compare [bc] (solution) and [hl] (guess)
+    ld a, [bc]
+    inc bc
+    ld d, a
+
+    ld a, [hl+]
+    cp d
+    jr nz, .Done
+
+    dec e
+    jr nz, .CheckValues
+
+    ; Solution is correct
+    halt
+
+.Done:
+    xor a
+    ld [gCheckWin], a
+
+    ret
 
 ; Update the value at the cursor position.
 UpdateValue:
@@ -338,10 +381,6 @@ LoadPuzzle:
     ld [gCursorX], a
     ld [gCursorY], a
     ld [gCheckWin], a
-    
-    ld de, gPuzzleValues
-    ld h, 4 * 4
-    call MemSet
 
     ; Set pointer to current puzzle
     ld bc, gPuzzle
@@ -350,6 +389,10 @@ LoadPuzzle:
     inc bc
     ld a, l
     ld [bc], a
+    
+    ld de, gPuzzleValues
+    ld h, 4 * 4
+    call MemSet
 
     ; Load cursor sprites
     ld de, STARTOF(OAM)
@@ -359,7 +402,8 @@ LoadPuzzle:
     LOAD_SPRITE_OAM CURSOR_X2, CURSOR_Y2, 0, %01110000
 
     ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
-    ADD16 hl, 8
+    ; ADD16 hl, 8
+    ADD16 hl, 16
     ld a, [hl+]
     ld c, a
 
