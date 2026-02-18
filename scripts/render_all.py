@@ -1,17 +1,18 @@
 from generate import generate_puzzle
 from render import render_puzzle
 
-TOTAL_PUZZLES = 0xA0
+TOTAL_PUZZLES = 0xAB
 
 
 def main() -> None:
     puzzles_asm = open("src/puzzles.asm", "w")
-    puzzles_asm.write('SECTION "Puzzles", ROM0\n\n')
 
     for i in range(TOTAL_PUZZLES):
         puzzle = generate_puzzle()
         render_puzzle(puzzle, f"src/puzzles/{i:03}.bin")
-        puzzles_asm.write(f'puzzle{i:03}: INCBIN "src/puzzles/{i:03}.bin"\n')
+
+        puzzles_asm.write(f'SECTION "Puzzle {i:03}", ROM0\n\n')
+        puzzles_asm.write(f'puzzle{i:03}: INCBIN "src/puzzles/{i:03}.bin"\n\n')
 
     puzzles_asm.write('\nSECTION "Puzzle Table", ROM0\n\n')
     puzzles_asm.write("gPuzzleTable:\n")

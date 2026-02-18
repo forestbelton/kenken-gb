@@ -104,7 +104,7 @@ RunGame:
 
     ; Load random puzzle
     call rand
-    call Mod160
+    call Mod171
     
     ld de, gPuzzleTable
     ADD16A de
