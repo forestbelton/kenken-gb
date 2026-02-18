@@ -9,6 +9,12 @@ gCursorY: DS 1
 
 SECTION "GRAPHICS", ROM0
 
+titleTiles: INCBIN "src/assets/title.bin"
+titleTilesEnd:
+
+titleTileMap: INCBIN "src/assets/title.bin.map"
+titleTileMapEnd:
+
 boardTiles: INCBIN "src/assets/board.bin"
 boardTilesEnd:
 
@@ -112,14 +118,110 @@ ClearOAM:
     ld [rOBP1], a
 
 Update:
-    ; Wait for Vblank
     ld a, [rLY]
     cp 144
     jp nc, Update
+WaitVBlank2:
+    ld a, [rLY]
+    cp 144
+    jp c, WaitVBlank2
 
     call UpdateKeys
 
-    jr Update
+    ; Check if up pressed
+    ld a, [gNewKeys]
+    and PAD_UP
+    jr z, .CheckDown
+
+    ; Check if cursor can move up
+    ld a, [gCursorY]
+    or a
+    jr z, Update
+
+    dec a
+    ld [gCursorY], a
+    jr .UpdateCursorSprites
+
+.CheckDown:
+    ; Check if down pressed
+    ld a, [gNewKeys]
+    and PAD_DOWN
+    jr z, .CheckLeft
+
+    ; Check if cursor can move down
+    ld a, [gCursorY]
+    cp 3
+    jr z, Update
+
+    inc a
+    ld [gCursorY], a
+    jr .UpdateCursorSprites
+
+.CheckLeft:
+    ; Check if down pressed
+    ld a, [gNewKeys]
+    and PAD_LEFT
+    jr z, .CheckRight
+
+    ; Check if cursor can move left
+    ld a, [gCursorX]
+    or a
+    jr z, Update
+
+    dec a
+    ld [gCursorX], a
+    jr .UpdateCursorSprites
+
+.CheckRight:
+    ; Check if right pressed
+    ld a, [gNewKeys]
+    and PAD_RIGHT
+    jr z, Update
+
+    ; Check if cursor can move right
+    ld a, [gCursorX]
+    cp 3
+    jr z, Update
+
+    inc a
+    ld [gCursorX], a
+
+MACRO UPDATE_CURSOR_SPRITE
+    ; Y = \2 + cursorY * 32 + 16
+    ld a, [gCursorY]
+    REPT 5
+        sla a
+    ENDR
+    add \2 + 16
+    ld [de], a
+    inc de
+
+    ; X = \1 + cursorX * 32 + 8
+    ld a, [gCursorX]
+    REPT 5
+        sla a
+    ENDR
+    add \1 + 8
+    ld [de], a
+    inc de
+ENDM
+
+.UpdateCursorSprites:
+    ld de, STARTOF(OAM)
+
+    UPDATE_CURSOR_SPRITE 40, 9
+    inc de
+    inc de
+
+    UPDATE_CURSOR_SPRITE 40, 32
+    inc de
+    inc de
+
+    UPDATE_CURSOR_SPRITE 16, 32
+    inc de
+    inc de
+
+    jp Update
 
 MACRO LOAD_SPRITE_OAM
     ld a, \2 + 16
