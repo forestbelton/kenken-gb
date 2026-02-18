@@ -150,14 +150,14 @@ def render_sprites(puzzle: Puzzle) -> bytes:
 
 
 def render_values(puzzle: Puzzle) -> bytes:
-    # packed_values: list[int] = []
-    # for y in range(4):
-    #     for x in range(4):
-    #         hi = puzzle.values[y][x] << 4
-    #         lo = puzzle.values[y][x]
-    #         packed_values.append(hi | lo)
-    # return bytes(packed_values)
-    return bytes(puzzle.values[y][x] for y in range(4) for x in range(4))
+    packed_values: list[int] = []
+    for y in range(4):
+        row = 0x00
+        for x in range(3, -1, -1):
+            row <<= 2
+            row |= puzzle.values[y][x] - 1
+        packed_values.append(row)
+    return bytes(packed_values)
 
 
 def render_puzzle(puzzle: Puzzle, outfile: str):

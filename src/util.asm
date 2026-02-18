@@ -104,19 +104,24 @@ ClearOAM:
 
 EXPORT ClearOAM
 
-; Compute remainder of division by 171
+; Compute remainder of division by \1
 ; @param b: Value to compute remainder of
 ; @return b: Remainder
-Mod171:
+MACRO ModM
+Mod\1:
     ld a, b
-    cp 171
+    cp \1
     jr c, .done
-    sub 171
+    sub \1
 .done:
     ld b, a
     ret
 
-EXPORT Mod171
+EXPORT Mod\1
+
+ENDM
+
+ModM 211
 
 SECTION "Joypad state", WRAM0
 

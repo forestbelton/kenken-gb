@@ -58,7 +58,7 @@ cursorTilesEnd:
 
 SECTION "Game state", WRAM0
 
-gPuzzle: DS 2
+gPuzzleSolution: DS 4 * 4
 gCursorX: DS 1
 gCursorY: DS 1
 gPuzzleValues: DS 4 * 4
@@ -104,7 +104,7 @@ RunGame:
 
     ; Load random puzzle
     call rand
-    call Mod171
+    call Mod211
     
     ld de, gPuzzleTable
     ADD16A de
@@ -146,16 +146,7 @@ UpdateWin:
     or a
     ret z
 
-    ; Dereference puzzle pointer
-    ld bc, gPuzzle
-    ld a, [bc]
-    ld l, a
-    inc bc
-    ld a, [bc]
-    ld h, a
-    ld c, h
-    ld b, l
-
+    ld bc, gPuzzleSolution
     ld hl, gPuzzleValues
 
     ld e, 16
@@ -381,13 +372,26 @@ LoadPuzzle:
     ld [gCursorY], a
     ld [gCheckWin], a
 
-    ; Set pointer to current puzzle
-    ld bc, gPuzzle
-    ld a, h
-    ld [bc], a
-    inc bc
-    ld a, l
-    ld [bc], a
+    ; Unpack puzzle solution
+    ld bc, gPuzzleSolution
+    FOR Y, 4
+        FOR X, 4
+            ld a, [hl]
+            FOR I, X
+                srl a
+                srl a
+            ENDR
+            and $3
+            inc a
+
+            ld [bc], a
+
+            IF X < 3 || Y < 3
+                inc bc
+            ENDC
+        ENDR
+        inc hl
+    ENDR
 
     push hl
     
@@ -405,8 +409,6 @@ LoadPuzzle:
 
     ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
     pop hl
-    ; ADD16 hl, 8
-    ADD16 hl, 16
     ld a, [hl+]
     ld c, a
 
@@ -481,11 +483,11 @@ FOR N, 4
     bit (N * 2), a
     jr z, .SkipCopyLeft\@
     
-    ld a, EDGE_TILE_IDX + 4
+    ld a, EDGE_TILE_IDX + 3
     ld [bc], a
     REPT 3
         ADD16 bc, $20
-        ld a, EDGE_TILE_IDX + 1
+        ld a, EDGE_TILE_IDX
         ld [bc], a
     ENDR
 
@@ -504,7 +506,7 @@ FOR N, 4
     and $3
     jr z, .EdgeDone\@
 
-    add EDGE_TILE_IDX
+    add EDGE_TILE_IDX - 1
     ld [bc], a
     inc bc
 
@@ -513,11 +515,11 @@ FOR N, 4
     bit (N * 2 + 1), a
     jr z, .EdgeDone\@
     REPT 2
-        ld a, EDGE_TILE_IDX + 2
+        ld a, EDGE_TILE_IDX + 1
         ld [bc], a
         inc bc
     ENDR
-    ld a, EDGE_TILE_IDX + 5
+    ld a, EDGE_TILE_IDX + 4
     ld [bc], a
 
 .EdgeDone\@:
