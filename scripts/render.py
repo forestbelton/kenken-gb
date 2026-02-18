@@ -1,14 +1,14 @@
 import argparse
-import dataclasses
-import enum
 import struct
 
-
-class CageOperator(enum.Enum):
-    ADD = "ADD"
-    SUB = "SUB"
-    MUL = "MUL"
-    DIV = "DIV"
+from generate import (
+    generate_puzzle,
+    Puzzle,
+    SingletonCage,
+    GroupCage,
+    CageOperator,
+    print_puzzle,
+)
 
 
 OPERATOR_TILE_OFFSET = 1
@@ -19,37 +19,6 @@ CAGE_OPERATOR_TILE_IDX: dict[CageOperator, int] = {
     CageOperator.MUL: 0xC,
     CageOperator.DIV: 0xD,
 }
-
-
-@dataclasses.dataclass
-class GroupCage:
-    op: CageOperator
-    target: int
-    tiles: list[tuple[int, int]]
-
-
-@dataclasses.dataclass
-class SingletonCage:
-    target: int
-    x: int
-    y: int
-
-
-@dataclasses.dataclass
-class Sprite:
-    x: int
-    y: int
-    tile_indexes: list[int]
-
-
-Cage = SingletonCage | GroupCage
-
-
-@dataclasses.dataclass
-class Puzzle:
-    cages: list[Cage]
-    values: list[list[int]]
-    edges: list[int]
 
 
 def validate_puzzle(puzzle: Puzzle):
@@ -207,76 +176,79 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", required=True)
     args = parser.parse_args()
-    puzzle = Puzzle(
-        # TODO: Calculate edge map from puzzle
-        edges=[0x6C, 0xD4, 0x7E, 0x44],
-        values=[
-            [4, 2, 1, 3],
-            [2, 4, 3, 1],
-            [3, 1, 4, 2],
-            [1, 3, 2, 4],
-        ],
-        cages=[
-            GroupCage(
-                op=CageOperator.MUL,
-                target=24,
-                tiles=[
-                    (0, 0),
-                    (0, 1),
-                    (0, 2),
-                ],
-            ),
-            SingletonCage(target=1, x=0, y=3),
-            GroupCage(
-                op=CageOperator.ADD,
-                target=3,
-                tiles=[
-                    (1, 0),
-                    (2, 0),
-                ],
-            ),
-            GroupCage(
-                op=CageOperator.ADD,
-                target=4,
-                tiles=[
-                    (3, 0),
-                    (3, 1),
-                ],
-            ),
-            GroupCage(
-                op=CageOperator.SUB,
-                target=3,
-                tiles=[
-                    (1, 1),
-                    (1, 2),
-                ],
-            ),
-            GroupCage(
-                op=CageOperator.SUB,
-                target=1,
-                tiles=[
-                    (2, 1),
-                    (2, 2),
-                ],
-            ),
-            GroupCage(
-                op=CageOperator.MUL,
-                target=6,
-                tiles=[
-                    (1, 3),
-                    (2, 3),
-                ],
-            ),
-            GroupCage(
-                op=CageOperator.DIV,
-                target=2,
-                tiles=[
-                    (3, 2),
-                    (3, 3),
-                ],
-            ),
-        ],
-    )
+    puzzle = generate_puzzle()
+    print_puzzle(puzzle)
+    # puzzle = Puzzle(
+    #     # TODO: Calculate edge map from puzzle
+    #     edges=[0x6C, 0xD4, 0x7E, 0x44],
+    #     values=[
+    #         [4, 2, 1, 3],
+    #         [2, 4, 3, 1],
+    #         [3, 1, 4, 2],
+    #         [1, 3, 2, 4],
+    #     ],
+    #     cages=[
+    # cages: list[Cage] = [
+    #     GroupCage(
+    #         op=CageOperator.MUL,
+    #         target=24,
+    #         tiles=[
+    #             (0, 0),
+    #             (0, 1),
+    #             (0, 2),
+    #         ],
+    #     ),
+    #     SingletonCage(target=1, x=0, y=3),
+    #     GroupCage(
+    #         op=CageOperator.ADD,
+    #         target=3,
+    #         tiles=[
+    #             (1, 0),
+    #             (2, 0),
+    #         ],
+    #     ),
+    #     GroupCage(
+    #         op=CageOperator.ADD,
+    #         target=4,
+    #         tiles=[
+    #             (3, 0),
+    #             (3, 1),
+    #         ],
+    #     ),
+    #     GroupCage(
+    #         op=CageOperator.SUB,
+    #         target=3,
+    #         tiles=[
+    #             (1, 1),
+    #             (1, 2),
+    #         ],
+    #     ),
+    #     GroupCage(
+    #         op=CageOperator.SUB,
+    #         target=1,
+    #         tiles=[
+    #             (2, 1),
+    #             (2, 2),
+    #         ],
+    #     ),
+    #     GroupCage(
+    #         op=CageOperator.MUL,
+    #         target=6,
+    #         tiles=[
+    #             (1, 3),
+    #             (2, 3),
+    #         ],
+    #     ),
+    #     GroupCage(
+    #         op=CageOperator.DIV,
+    #         target=2,
+    #         tiles=[
+    #             (3, 2),
+    #             (3, 3),
+    #         ],
+    #     ),
+    # ]
+    # )
     render_puzzle(puzzle, args.output)
 
 

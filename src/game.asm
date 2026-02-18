@@ -13,6 +13,7 @@ DEF CURSOR_Y2 EQU 32
 SECTION "Puzzles", ROM0
 
 puzzle001: INCBIN "src/puzzles/001.bin"
+puzzle002: INCBIN "src/puzzles/002.bin"
 
 SECTION "Puzzle constants", ROM0
 
@@ -106,7 +107,7 @@ RunGame:
     call MapCopy
 
     ; Initialize game state
-    ld hl, puzzle001
+    ld hl, puzzle002
     call LoadPuzzle
 
     ; Initialize key state
@@ -116,14 +117,6 @@ RunGame:
     ; Turn on LCD
     ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
     ld [rLCDC], a
-
-    ; Initialize display registers
-    ld a, %11100100
-    ld [rBGP], a
-    ld a, %11111100
-    ld [rOBP0], a
-    ld a, %11100100
-    ld [rOBP1], a
 
 Update:
     ld a, [rLY]
@@ -155,8 +148,8 @@ UpdateWin:
     inc bc
     ld a, [bc]
     ld h, a
-    ld b, h
-    ld c, l
+    ld c, h
+    ld b, l
 
     ld hl, gPuzzleValues
 
@@ -175,7 +168,7 @@ UpdateWin:
     jr nz, .CheckValues
 
     ; Solution is correct
-    halt
+    jp RunWin
 
 .Done:
     xor a

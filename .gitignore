@@ -3,3 +3,4 @@
 *.sym
 *.o
 *.gb
+__pycache__
