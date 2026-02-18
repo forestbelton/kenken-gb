@@ -1,11 +1,6 @@
 INCLUDE "hardware.inc"
 INCLUDE "macros.inc"
 
-SECTION "Title graphics", ROM0
-
-titleTileMap: INCBIN "src/assets/title.bin.map"
-titleTileMapEnd:
-
 SECTION "HEADER", ROM0[$100]
     jp main
     ds $150 - @, 0
@@ -23,4 +18,4 @@ main:
     ld a, %11100100
     ld [rOBP1], a
 
-    call RunGame
+    call RunTitle

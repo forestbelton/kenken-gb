@@ -38,19 +38,19 @@ RunWin:
     ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
     ld [rLCDC], a
     
-Update:
+.WinUpdate:
     ld a, [rLY]
     cp LY_VBLANK
-    jp nc, Update
-WaitVBlank2:
+    jp nc, .WinUpdate
+.WinWaitVBlank2:
     ld a, [rLY]
     cp LY_VBLANK
-    jp c, WaitVBlank2
+    jp c, .WinWaitVBlank2
 
     call UpdateKeys
 
-    ld a, [gCurKeys]
+    ld a, [gNewKeys]
     and PAD_A
-    jr z, Update
+    jr z, .WinUpdate
 
-    jr Update
+    jp RunTitle
