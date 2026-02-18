@@ -91,6 +91,19 @@ UpdateKeys:
 
 EXPORT UpdateKeys
 
+ClearOAM:
+    xor a
+    ld b, OAM_SIZE
+    ld hl, STARTOF(OAM)
+.loop
+    ld [hli], a
+    dec b
+    jp nz, .loop
+
+    ret
+
+EXPORT ClearOAM
+
 SECTION "Joypad state", WRAMX
 
 gCurKeys: DS 1
