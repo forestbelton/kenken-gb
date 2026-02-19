@@ -10,11 +10,22 @@ class CageOperator(enum.Enum):
     DIV = "DIV"
 
 
+OPERATOR_CHARS: dict[CageOperator, str] = {
+    CageOperator.ADD: "+",
+    CageOperator.SUB: "-",
+    CageOperator.MUL: "*",
+    CageOperator.DIV: "/",
+}
+
+
 @dataclasses.dataclass
 class GroupCage:
     op: CageOperator
     target: int
     tiles: list[tuple[int, int]]
+
+    def key(self) -> str:
+        return f"{self.target}{OPERATOR_CHARS[self.op]}"
 
 
 @dataclasses.dataclass
@@ -22,6 +33,9 @@ class SingletonCage:
     target: int
     x: int
     y: int
+
+    def key(self) -> str:
+        return str(self.target)
 
 
 Cage = SingletonCage | GroupCage

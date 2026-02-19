@@ -1,11 +1,19 @@
+import dataclasses
 import struct
 
 from generate import (
+    Cage,
+    CageOperator,
+    GroupCage,
     Puzzle,
     SingletonCage,
-    GroupCage,
-    CageOperator,
 )
+
+
+@dataclasses.dataclass
+class CageEntry:
+    id: int
+    cage: Cage
 
 
 OPERATOR_TILE_OFFSET = 1
@@ -16,6 +24,18 @@ CAGE_OPERATOR_TILE_IDX: dict[CageOperator, int] = {
     CageOperator.MUL: 0xC,
     CageOperator.DIV: 0xD,
 }
+
+
+def generate_cage_dict(puzzles: list[Puzzle]) -> dict[str, CageEntry]:
+    cage_dict: dict[str, CageEntry] = {}
+    next_id = 0
+    for puzzle in puzzles:
+        for cage in puzzle.cages:
+            key = cage.key()
+            if key not in cage_dict:
+                cage_dict[key] = CageEntry(id=next_id, cage=cage)
+                next_id += 1
+    return cage_dict
 
 
 def validate_puzzle(puzzle: Puzzle):
@@ -149,6 +169,34 @@ def render_sprites(puzzle: Puzzle) -> bytes:
     return out
 
 
+def render_cage_constraint(cage: Cage) -> list[int]:
+    indexes = get_digits(cage.target)
+    if isinstance(cage, GroupCage):
+        indexes.append(CAGE_OPERATOR_TILE_IDX[cage.op])
+    indexes = [index + OPERATOR_TILE_OFFSET for index in indexes]
+    while len(indexes) < 4:
+        indexes.append(0xFF)
+    return indexes
+
+
+def render_sprites_with_dict(puzzle: Puzzle, cage_dict: dict[str, CageEntry]) -> bytes:
+    out = bytearray()
+    out.append(len(puzzle.cages))
+    for cage in puzzle.cages:
+        top_tile = find_top_tile(cage)
+        x = get_sprite_x0(top_tile[0])
+        # Move text 1 pixel left if there is no left edge
+        if not has_left_edge(puzzle, top_tile[0], top_tile[1]):
+            x -= 1
+        y = get_sprite_y0(top_tile[1])
+        assert cage.key() in cage_dict
+        cage_entry = cage_dict[cage.key()]
+        assert cage_entry.id <= 0xFF
+        entry = struct.pack("BBB", x + 8, y + 16, cage_entry.id)
+        out.extend(entry)
+    return out
+
+
 def render_values(puzzle: Puzzle) -> bytes:
     packed_values: list[int] = []
     for y in range(4):
@@ -164,6 +212,17 @@ def render_puzzle(puzzle: Puzzle, outfile: str):
     validate_puzzle(puzzle)
     out = render_values(puzzle)
     out += render_sprites(puzzle)
+    out += bytes(puzzle.edges)
+    with open(outfile, "wb") as outf:
+        outf.write(out)
+
+
+def render_puzzle_with_dict(
+    puzzle: Puzzle, outfile: str, cage_dict: dict[str, CageEntry]
+) -> None:
+    validate_puzzle(puzzle)
+    out = render_values(puzzle)
+    out += render_sprites_with_dict(puzzle, cage_dict)
     out += bytes(puzzle.edges)
     with open(outfile, "wb") as outf:
         outf.write(out)

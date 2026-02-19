@@ -107,7 +107,6 @@ RunGame:
 IF USE_RANDOM_PUZZLES == 1
     ; Load random puzzle
     call rand
-    call Mod218
     
     ld de, gPuzzleTable
     ADD16A de
@@ -447,7 +446,21 @@ LoadPuzzle:
     ld b, a
 
     ld a, [hl+] ; Initial Y
+    
+    ; Save puzzle offset (need to increment when restoring)
+    push hl
+
+    ; Save initial Y
     push af
+
+    ; Compute dictionary offset (each entry is 4 bytes, so shift twice)
+    ld a, [hl] ; Dictionary index
+    sla a
+    sla a
+
+    ; Lookup sequence in dictionary
+    ld hl, gPuzzleDict
+    ADD16A hl
 
 .LoadSpriteSequenceLoop
     ; End loop when encountering sequence terminator (0xff)
@@ -481,11 +494,14 @@ LoadPuzzle:
     jr .LoadSpriteSequenceLoop
 
 .LoadSpriteSequenceDone
-    ; Skip terminator byte
-    inc hl
-
     ; Remove stored tile Y from stack
     pop af
+
+    ; Restore puzzle pointer
+    pop hl
+
+    ; Skip dictionary index
+    inc hl
 
     ; Loop if more sprites left in sequence
     dec c
