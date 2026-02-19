@@ -1,7 +1,7 @@
 from generate import generate_puzzle
 from render import render_puzzle
 
-TOTAL_PUZZLES = 0xD3
+TOTAL_PUZZLES = 0xDA
 
 
 def main() -> None:

@@ -121,7 +121,7 @@ EXPORT Mod\1
 
 ENDM
 
-ModM 211
+ModM 218
 
 SECTION "Joypad state", WRAM0
 

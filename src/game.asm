@@ -66,6 +66,8 @@ gCheckWin: DS 1
 
 SECTION "Game code", ROM0
 
+DEF USE_RANDOM_PUZZLES EQU 1
+
 EXPORT RunGame
 
 RunGame:
@@ -102,9 +104,10 @@ RunGame:
     ld hl, TILEMAP0
     call MapCopy
 
+IF USE_RANDOM_PUZZLES == 1
     ; Load random puzzle
     call rand
-    call Mod211
+    call Mod218
     
     ld de, gPuzzleTable
     ADD16A de
@@ -116,6 +119,9 @@ RunGame:
     inc de
     ld a, [de]
     ld h, a
+ELSE
+    ld hl, puzzle000
+ENDC
 
     call LoadPuzzle
 
@@ -251,24 +257,37 @@ UpdateValue:
 
     ret
 
-MACRO UPDATE_CURSOR_SPRITE
-    ; Y = \2 + cursorY * 32 + 16
+; Update cursor sprite position in OAM.
+; @param de: OAM address
+; @param b: Y position + 16
+; @param c: X position + 8
+UpdateCursorSprite:
+    ; Y = B + cursorY * 32
     ld a, [gCursorY]
     REPT 5
-        sla a
+        rlca
     ENDR
-    add \2 + 16
+    add b
     ld [de], a
     inc de
 
-    ; X = \1 + cursorX * 32 + 8
+    ; X = C + cursorX * 32
     ld a, [gCursorX]
     REPT 5
-        sla a
+        rlca
     ENDR
-    add \1 + 8
+    add c
     ld [de], a
     inc de
+
+    inc de
+    inc de
+
+    ret
+
+MACRO UPDATE_CURSOR_SPRITE
+    ld bc, ((\2 + 16) << 8) | (\1 + 8)
+    call UpdateCursorSprite
 ENDM
 
 ; Update the position of the cursor.
@@ -335,32 +354,34 @@ UpdateCursor:
     ld de, STARTOF(OAM)
 
     UPDATE_CURSOR_SPRITE CURSOR_X0, CURSOR_Y0
-    inc de
-    inc de
-
     UPDATE_CURSOR_SPRITE CURSOR_X1, CURSOR_Y1
-    inc de
-    inc de
-
     UPDATE_CURSOR_SPRITE CURSOR_X2, CURSOR_Y2
-    inc de
-    inc de
 
     ret
 
-MACRO LOAD_SPRITE_OAM
-    ld a, \2 + 16
+; Load a cursor sprite into OAM.
+; @param b: Y position + 16
+; @param c: X position + 8
+; @param h: OAM attributes
+LoadCursorSprite:
+    ld a, b
     ld [de], a
     inc de
-    ld a, \1 + 8
+    ld a, c
     ld [de], a
     inc de
-    ld a, \3
+    xor a
     ld [de], a
     inc de
-    ld a, \4
+    ld a, h
     ld [de], a
     inc de
+    ret
+
+MACRO LOAD_CURSOR_SPRITE
+    ld bc, ((\2 + 16) << 8) | (\1 + 8)
+    ld h, \3
+    call LoadCursorSprite
 ENDM
 
 ; Load a puzzle from ROM
@@ -374,24 +395,27 @@ LoadPuzzle:
 
     ; Unpack puzzle solution
     ld bc, gPuzzleSolution
-    FOR Y, 4
-        FOR X, 4
-            ld a, [hl]
-            FOR I, X
-                srl a
-                srl a
-            ENDR
-            and $3
-            inc a
+    ld d, 4
+.UnpackPuzzleRow:
+    ld e, [hl]
 
-            ld [bc], a
+.UnpackPuzzleRowLoop:
+    FOR X, 4
+        ld a, e
+        and $3
+        inc a
 
-            IF X < 3 || Y < 3
-                inc bc
-            ENDC
-        ENDR
-        inc hl
+        ld [bc], a
+        inc bc
+        
+        IF X < 3
+            srl e
+            srl e
+        ENDC
     ENDR
+    inc hl
+    dec d
+    jr nz, .UnpackPuzzleRow
 
     push hl
     
@@ -403,9 +427,9 @@ LoadPuzzle:
     ; Load cursor sprites
     ld de, STARTOF(OAM)
 
-    LOAD_SPRITE_OAM CURSOR_X0, CURSOR_Y0, 0, %00010000
-    LOAD_SPRITE_OAM CURSOR_X1, CURSOR_Y1, 0, %01010000
-    LOAD_SPRITE_OAM CURSOR_X2, CURSOR_Y2, 0, %01110000
+    LOAD_CURSOR_SPRITE CURSOR_X0, CURSOR_Y0, %00010000
+    LOAD_CURSOR_SPRITE CURSOR_X1, CURSOR_Y1, %01010000
+    LOAD_CURSOR_SPRITE CURSOR_X2, CURSOR_Y2, %01110000
 
     ; Load puzzle sprite sequences (NOTE: MUST always have at least one sprite sequence)
     pop hl
