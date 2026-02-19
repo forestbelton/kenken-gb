@@ -232,7 +232,7 @@ UpdateValue:
     ld a, e
     sla a
     sla a
-    add $15
+    add $14
 
     ; Update map with new tiles
     ld [hl+], a
