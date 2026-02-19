@@ -265,6 +265,8 @@ UpdateCursorSprite:
     ; Y = B + cursorY * 32
     ld a, [gCursorY]
     REPT 5
+        ; We can use RLCA here instead of SLA due to the fact that the carry bit is
+        ; always clear upon calling this function. This saves 5 bytes in each REPT.
         rlca
     ENDR
     add b
@@ -397,23 +399,27 @@ LoadPuzzle:
     ld bc, gPuzzleSolution
     ld d, 4
 .UnpackPuzzleRow:
+    push de
+    
     ld e, [hl]
+    ld d, 4
+.UnpackPuzzleCell:
+    ld a, e
+    and $3
+    inc a
 
-.UnpackPuzzleRowLoop:
-    FOR X, 4
-        ld a, e
-        and $3
-        inc a
+    ld [bc], a
+    inc bc
 
-        ld [bc], a
-        inc bc
-        
-        IF X < 3
-            srl e
-            srl e
-        ENDC
-    ENDR
+    srl e
+    srl e
+
+    dec d
+    jr nz, .UnpackPuzzleCell
+
     inc hl
+
+    pop de
     dec d
     jr nz, .UnpackPuzzleRow
 
