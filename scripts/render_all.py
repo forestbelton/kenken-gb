@@ -1,3 +1,5 @@
+import argparse
+import random
 from typing import TextIO
 
 from generate import generate_puzzle
@@ -9,6 +11,7 @@ from render import (
 )
 
 TOTAL_PUZZLES = 0x100
+FIXED_SEED = 42
 
 
 def to_byte(val: int) -> str:
@@ -37,6 +40,13 @@ def render_dict(cage_dict: dict[str, CageEntry], f: TextIO) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--use-random-seed", default=False, action="store_true")
+
+    args = parser.parse_args()
+    if not args.use_random_seed:
+        random.seed(FIXED_SEED)
+
     puzzles = [generate_puzzle() for _ in range(TOTAL_PUZZLES)]
     cage_dict = generate_cage_dict(puzzles)
 
