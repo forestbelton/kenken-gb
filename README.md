@@ -1,6 +1,6 @@
 # kenken-gb
 
-`kenken-gb` is a [KenKen](https://en.wikipedia.org/wiki/KenKen) puzzle game for the Game Boy. Solve from a selection of 256 4x4 KenKen puzzles!
+`kenken-gb` is a [KenKen](https://en.wikipedia.org/wiki/KenKen) puzzle game for the Game Boy. Solve from a selection of 256 4x4 KenKen puzzles. [Play it online now!](https://forestbelton.github.io/kenken-gb)
 
 <p align="center">
   <img src="./screenshots/screenshot1.png" alt="Title Screenshot" />
