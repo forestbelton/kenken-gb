@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        <link rel="stylesheet" href="css/GameBoy.css" />
+        <script>
+            var DEBUG_MESSAGES = true;
+            var DEBUG_WINDOWING = false;
+        </script>
+        <script type="text/javascript" src="js/other/windowStack.js"></script>
+        <script type="text/javascript" src="js/other/terminal.js"></script>
+        <script type="text/javascript" src="js/other/gui.js"></script>
+        <script type="text/javascript" src="js/other/base64.js"></script>
+        <script type="text/javascript" src="js/other/json2.js"></script>
+        <script type="text/javascript" src="js/other/swfobject.js"></script>
+        <script type="text/javascript" src="js/other/resampler.js"></script>
+        <script type="text/javascript" src="js/other/XAudioServer.js"></script>
+        <script type="text/javascript" src="js/other/resize.js"></script>
+        <script type="text/javascript" src="js/GameBoyCore.js"></script>
+        <script type="text/javascript" src="js/GameBoyIO.js"></script>
+        <title>kenken.gb</title>
+    </head>
+    <body>
+        <div id="GameBoy">
+            <div id="gfx">
+                <canvas id="mainCanvas"/>
+            </div>
+            <div>
+                <div style="text-align: center;"><h4>Controls</h4></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Button</th>
+                            <th>Keys</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>A</td>
+                            <td>X</td>
+                        </tr>
+                        <tr>
+                            <td>B</td>
+                            <td>Z</td>
+                        </tr>
+                        <tr>
+                            <td>Start</td>
+                            <td>Enter</td>
+                        </tr>
+                        <tr>
+                            <td style="padding-right: 2rem;">Up/Down/Left/Right</td>
+                            <td>Arrow Keys</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <script type="text/javascript">
+            fetch("./kenken.gb").then(function(response) {
+                return response.arrayBuffer();
+            }).then(function(romBuffer) {
+                let bytes = new Uint8Array(romBuffer);
+                let rom = "";
+                for (let i = 0; i < bytes.length; i += 65536) {
+                    rom += String.fromCharCode.apply(null, bytes.subarray(i, i + 65536));
+                }
+                let canvas = document.getElementById("mainCanvas");
+
+                console.log("calling start");
+                start(canvas, rom);
+
+                document.addEventListener("keydown", keyDown);
+                document.addEventListener("keyup", keyUp);
+            });
+        </script>
+    </body>
+</html>

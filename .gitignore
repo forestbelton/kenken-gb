@@ -1,9 +1,0 @@
-__pycache__
-
-*.bin
-*.map
-*.sym
-*.o
-*.gb
-
-src/puzzles.asm
